@@ -1,10 +1,15 @@
 package main
 
 import (
+	"authentication-service/pkg/tracing"
 	"context"
+	"encoding/json"
 	firebase "firebase.google.com/go"
 	"firebase.google.com/go/auth"
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/api/option"
 	"log"
 	"net/http"
@@ -19,6 +24,13 @@ type Server struct {
 }
 
 func main() {
+	tracer, err := tracing.TracerProvider("http://jaeger:6831/api/traces")
+
+	if err != nil {
+		panic(err)
+	}
+
+	otel.SetTracerProvider(tracer)
 
 	opt := option.WithCredentialsFile("./serviceKey.json")
 	app, err := firebase.NewApp(context.Background(), nil, opt)
@@ -34,6 +46,7 @@ func main() {
 	server := Server{auth: authentication}
 
 	router := gin.New()
+	router.Use(otelgin.Middleware("authentication-service", otelgin.WithTracerProvider(tracer)))
 
 	router.GET("/auth", server.Authorize)
 
@@ -43,6 +56,8 @@ func main() {
 }
 
 func (s *Server) Authorize(c *gin.Context) {
+	span := trace.SpanFromContext(c)
+
 	authorizationToken := c.GetHeader("Authorization")
 
 	idToken := strings.TrimSpace(strings.Replace(authorizationToken, "Bearer", "", 1))
@@ -65,11 +80,14 @@ func (s *Server) Authorize(c *gin.Context) {
 		return
 	}
 
-	var resp = struct{ id, email string }{id: token.UID, email: user.Email}
+	claims, _ := json.Marshal(user.CustomClaims)
 
-	c.Header("x-user-email", resp.email)
-	c.Header("x-user-id", resp.id)
-	c.JSON(http.StatusOK, resp)
+	c.Header("x-user-claims", string(claims))
+	c.Header("x-user-email", user.Email)
+	c.Header("x-user-id", user.UID)
+
+	span.End()
+	c.AbortWithStatus(200)
 }
 
 func GetEnvOrDefault(environmentKey, defaultValue string) string {

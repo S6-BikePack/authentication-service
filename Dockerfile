@@ -17,13 +17,16 @@ RUN set -x && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -
 
 COPY --from=rest /app/server /app/server
 
-COPY cmd/serviceKey.json ./
+COPY ./serviceKey.json ./
 
 LABEL traefik.http.routers.authentication.rule=Path(`/auth`)
 LABEL traefik.enable=true
 LABEL traefik.http.routers.authentication.entrypoints=web
 LABEL traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://localhost/auth
 LABEL traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders='X-User-Id, X-User-Email'
+LABEL traefik.http.middlewares.serviceheaders.headers.accesscontrolalloworiginlist=*
+LABEL traefik.http.middlewares.serviceheaders.headers.accessControlAllowMethods='GET, POST'
+LABEL traefik.http.middlewares.serviceheaders.headers.accessControlAllowHeaders='authorization, content-type'
 
 EXPOSE 1234
 
