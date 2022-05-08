@@ -74,6 +74,8 @@ This service has the following environment variables that can be set:
 
 Building the project requires Go 1.18.
 
+Running the service requires a firebase serviceKey.json file in the root folder of the container.
+
 The easiest way to setup the project is to use the Docker-Compose file from the infrastructure repository.
 
 <!-- Running Tests -->

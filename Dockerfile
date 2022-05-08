@@ -17,8 +17,6 @@ RUN set -x && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -
 
 COPY --from=rest /app/server /app/server
 
-COPY ./serviceKey.json ./
-
 LABEL traefik.http.routers.authentication.rule=Path(`/auth`)
 LABEL traefik.enable=true
 LABEL traefik.http.routers.authentication.entrypoints=web
