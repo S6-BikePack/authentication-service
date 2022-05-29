@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentication-service-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authentication-service
+  template:
+    metadata:
+      labels:
+        app: authentication-service
+    spec:
+      containers:
+      - image: bikepack.azurecr.io/bikepack/authentication-service:latest
+        name: authentication
+        resources:
+          requests:
+            cpu: '0'
+            memory: '0'
+          limits:
+            cpu: '256'
+            memory: 11400G
+        ports:
+        - containerPort: 1234
+          protocol: TCP
+        volumeMounts:
+          - mountPath: "/mnt/secrets-store"
+            name: secrets-store01
+            readOnly: true
+        env:
+        - name: FIREBASE_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              name: bikepack-secret
+              key: fbCred
+      
+      volumes:
+      - name: secrets-store01
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: azure-sync

@@ -1,20 +1,18 @@
 package main
 
 import (
-	"authentication-service/pkg/tracing"
 	"context"
 	"encoding/json"
-	firebase "firebase.google.com/go"
-	"firebase.google.com/go/auth"
-	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/api/option"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+
+	firebase "firebase.google.com/go"
+	"firebase.google.com/go/auth"
+	"github.com/gin-gonic/gin"
+	"google.golang.org/api/option"
 )
 
 const defaultPort = ":1234"
@@ -24,29 +22,26 @@ type Server struct {
 }
 
 func main() {
-	tracer, err := tracing.TracerProvider("http://jaeger:6831/api/traces")
-
-	if err != nil {
-		panic(err)
+	var opt option.ClientOption
+	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") != "" {
+		opt = option.WithCredentialsJSON([]byte(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")))
+	} else {
+		opt = option.WithCredentialsFile("./serviceKey.json")
 	}
 
-	otel.SetTracerProvider(tracer)
-
-	opt := option.WithCredentialsFile("./serviceKey.json")
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Error initializing firebase: %v\n", err)
 	}
 
 	authentication, err := app.Auth(context.Background())
 	if err != nil {
-		panic(err)
+		fmt.Printf("Error initializing firebase authentication: %v\n", err)
 	}
 
 	server := Server{auth: authentication}
 
 	router := gin.New()
-	router.Use(otelgin.Middleware("authentication-service", otelgin.WithTracerProvider(tracer)))
 
 	router.GET("/auth", server.Authorize)
 
@@ -56,8 +51,6 @@ func main() {
 }
 
 func (s *Server) Authorize(c *gin.Context) {
-	span := trace.SpanFromContext(c)
-
 	authorizationToken := c.GetHeader("Authorization")
 
 	idToken := strings.TrimSpace(strings.Replace(authorizationToken, "Bearer", "", 1))
@@ -86,7 +79,6 @@ func (s *Server) Authorize(c *gin.Context) {
 	c.Header("x-user-email", user.Email)
 	c.Header("x-user-id", user.UID)
 
-	span.End()
 	c.AbortWithStatus(200)
 }
 
