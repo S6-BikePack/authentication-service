@@ -23,8 +23,8 @@ type Server struct {
 
 func main() {
 	var opt option.ClientOption
-	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") != "" {
-		opt = option.WithCredentialsJSON([]byte(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")))
+	if os.Getenv("FIREBASE_CREDENTIALS") != "" {
+		opt = option.WithCredentialsJSON([]byte(os.Getenv("FIREBASE_CREDENTIALS")))
 	} else {
 		opt = option.WithCredentialsFile("./serviceKey.json")
 	}
